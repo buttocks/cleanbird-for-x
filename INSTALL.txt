@@ -1,4 +1,4 @@
-CLEANBIRD FOR X 1.1.0
+CLEANBIRD FOR X 1.2.0
 
 REQUIREMENTS
 - Firefox
@@ -16,7 +16,7 @@ INSTALL
 4. Open or reload https://x.com/
 
 SETTINGS
-- Open X's More menu and choose BR settings.
+- Open X's More menu and choose Cleanbird settings.
 - Or press Alt+Shift+C while viewing X.
 - Or use the userscript manager's Open Cleanbird settings command.
 
@@ -24,11 +24,20 @@ The optional quick-settings button is disabled by default. All cleanup and
 layout controls are independent, so the interface can stay wide or compact as
 the Firefox window changes resolution.
 
+PRIVACY GUARD
+Limit X tracking (best effort) is enabled by default. It blocks known X
+client-event telemetry and beacons, removes common tracking parameters from
+clicked links, and suppresses X as the referrer on external links. It is
+conservative by design and cannot guarantee that every form of tracking is
+blocked.
+
 HOME TAB ORDER
-Open X Home before opening BR settings. The Home tab order section detects the
-tabs currently on X's top bar. Use the left and right arrows to place any tab
-where you want it. New or renamed tabs remain visible and can be arranged later.
+Open X Home before opening Cleanbird settings. The Home tab order section detects the
+tabs currently on X's top bar. Use the up and down arrows to place any tab where
+you want it. New or renamed tabs remain visible and can be arranged later.
 Choose Use X order to clear the custom arrangement.
+For You is placed last by default. Moving it manually or choosing Use X order
+turns off that default so the chosen order is respected.
 
 UPDATING
 Installing a newer Cleanbird-Firefox.user.js replaces the older version when
