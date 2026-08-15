@@ -4,6 +4,8 @@
 // @version      1.1.0
 // @description  A configurable, responsive cleanup interface for X in Firefox.
 // @license      MIT
+// @homepageURL  https://github.com/buttocks/cleanbird-for-x
+// @supportURL   https://github.com/buttocks/cleanbird-for-x/issues
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @run-at       document-start
