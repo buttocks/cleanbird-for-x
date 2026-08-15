@@ -28,6 +28,7 @@ better use of wide screens. It runs on both `x.com` and `twitter.com`.
 - Persistent counters for blocked ads, Grok/Chat clutter, and trackers
 - Compact posts, reduced motion, softer engagement metrics, and disabled video
   autoplay
+- Optional viewport-height fitting for oversized timeline videos
 - Following feed selected automatically when available
 - Optional quick-settings button that drags and snaps around the screen edges
 - Overlay-safe menus, dialogs, media viewers, and Recent/Popular sorting
@@ -59,7 +60,7 @@ https://github.com/buttocks/cleanbird-for-x
 
 ## Code to submit
 
-Submit the complete contents of `Cleanbird-for-X-Greasy-Fork-v1.5.0.user.js`.
+Submit the complete contents of `Cleanbird-for-X-Greasy-Fork-v1.5.1.user.js`.
 Its public namespace is deliberately different from the older local build, so
 it installs as a separate userscript instead of replacing that copy. Keep only
 one Cleanbird script enabled at a time. Do not add a Greasy Fork `@downloadURL`

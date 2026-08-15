@@ -17,6 +17,7 @@ and making the three-column layout use the browser width intelligently.
 - For You moved to the end of the Home tabs by default
 - Home-tab organizer with up/down controls for every detected top-bar tab
 - Compact posts, reduced motion, softer metrics, and stopped video autoplay
+- Optional viewport-height fitting for oversized timeline videos
 - Cleanbird settings inside X's More menu, plus `Alt+Shift+C`
 - Optional draggable quick-settings button that snaps to any screen edge
 - Overlay-safe behavior for menus, dialogs, media viewers, and sort controls

@@ -1,4 +1,4 @@
-CLEANBIRD FOR X 1.5.0
+CLEANBIRD FOR X 1.5.1
 
 REQUIREMENTS
 - Firefox
@@ -36,6 +36,11 @@ or SVG images for the header logo, browser tab/bookmark icon, Cleanbird's More-
 menu icon, and the draggable quick-settings button. Each image can be returned
 to its normal default independently. Images are stored locally by the
 userscript manager and are limited to 3 MB each.
+
+VIDEO FITTING
+Fit videos to browser height is enabled by default. Oversized timeline videos
+are scaled down so the complete frame fits within the browser viewport. Videos
+that already fit are left at their normal size.
 
 PRIVACY GUARD
 Limit X tracking (best effort) is enabled by default. It blocks known X
