@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-08-15
+
+- Replaced the Canada-specific For You rule with a general Home tab organizer.
+- Added controls to move every detected top-bar tab left or right.
+- Preserved new and unknown X tabs instead of hiding or discarding them.
+- Added a one-click option to restore X's native tab order.
+
 ## 1.0.0 — 2026-08-15
 
 - Added fluid sidebar widths and responsive interface typography.
