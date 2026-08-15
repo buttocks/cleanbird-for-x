@@ -24,6 +24,9 @@ with any image from the BR settings panel.
 
 See `INSTALL.txt`. The direct installer is `Cleanbird-Firefox.user.js`.
 
+For a Greasy Fork release, use the exact listing copy and submission notes in
+`GREASY-FORK.md`.
+
 ## Privacy
 
 Cleanbird runs only on `x.com` and `twitter.com`. It uses your existing browser
