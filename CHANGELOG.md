@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.0 — 2026-08-15
+
+- Added optional custom images for the header logo, browser favicon, More-menu
+  settings icon, and draggable quick-settings button.
+- Added persistent counters for blocked ads, Grok/Chat clutter, and trackers.
+- Improved cached-refresh startup reliability and delayed privacy interception
+  until X's main interface is ready.
+- Preserved native Translate controls while hiding standalone Grok actions.
+- Fixed ordinary posts opened from Notifications being mistaken for ads.
+- Stopped X-scripted video playback even when a video has no autoplay attribute,
+  while preserving playback started directly by the user.
+- Improved Back and Close handling across opened posts and other X page layouts.
+- Made Cleanbird safer around native menus, dialogs, media viewers, and sort
+  overlays without replacing X's own controls.
+- Improved compact account popups and expanded Premium cleanup to profile
+  verification nags and Premium Business surfaces.
+
+## 1.2.1 — 2026-08-15
+
+- Made the optional quick-settings button draggable with pointer or touch input.
+- Snapped the button to the nearest screen edge and remembered its position.
+- Set the default and reset position to the lower-right corner.
+- Prevented dragging the button from accidentally opening settings.
+
 ## 1.2.0 — 2026-08-15
 
 - Added a default-on, best-effort X tracking limiter.
