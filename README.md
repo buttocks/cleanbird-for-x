@@ -13,7 +13,8 @@ with any image from the BR settings panel.
 - Adjustable full-width and narrow-reading layouts
 - Optional removal of promoted posts, Grok, Chat, Premium, Jobs, trends,
   suggestions, view counts, and footer links
-- Following feed selected by default, with For You moved after Canada News
+- Following feed selected by default
+- Home-tab organizer that can move any detected top-bar tab left or right
 - Compact posts, reduced motion, softer metrics, and stopped video autoplay
 - BR settings inside X's More menu, plus `Alt+Shift+C`
 - Built-in BR logo, custom logo upload, and matching browser-tab icon
