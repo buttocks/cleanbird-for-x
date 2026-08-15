@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1 — 2026-08-15
+
+- Added an independent Fit videos to browser height setting.
+- Scaled oversized timeline videos down to the viewport without cropping or
+  enlarging videos that already fit.
+
 ## 1.5.0 — 2026-08-15
 
 - Added optional custom images for the header logo, browser favicon, More-menu
