@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cleanbird for X
 // @namespace    cleanbird.local
-// @version      1.0.0
+// @version      1.1.0
 // @description  A configurable, responsive cleanup interface for X in Firefox.
 // @license      MIT
 // @match        https://x.com/*
@@ -62,7 +62,6 @@
     reduceMotion: true,
     stopAutoplay: true,
     autoFollowing: true,
-    moveForYouTab: true,
     floatingSettings: false
   };
 
@@ -87,7 +86,6 @@
     reduceMotion: 'Reduce animations',
     stopAutoplay: 'Stop video autoplay',
     autoFollowing: 'Default to Following feed',
-    moveForYouTab: 'Move For You after Canada News',
     floatingSettings: 'Show quick settings button'
   };
 
@@ -99,11 +97,15 @@
     hideCommunities: ['/communities']
   };
 
-  const SETTINGS_VERSION = 2;
+  const SETTINGS_VERSION = 3;
   let settings = loadSettings();
+  let tabOrder = loadTabOrder();
   let styleNode;
   let panel;
   let settingsButton;
+  let tabEditorSignature = '';
+  let nativeTabOrder = [];
+  let nativeTabRoute = '';
   let scanQueued = false;
   let lastRoute = '';
   let followingAttemptedFor = '';
@@ -133,18 +135,44 @@
     }
   }
 
+  function loadTabOrder() {
+    try {
+      const value = GM_getValue('tabOrder', '[]');
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      return Array.isArray(parsed)
+        ? parsed.filter(item => typeof item === 'string' && item.trim())
+        : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveTabOrder(order) {
+    tabOrder = [...new Set(order.filter(Boolean))];
+    try { GM_setValue('tabOrder', JSON.stringify(tabOrder)); } catch (_) {}
+  }
+
   function migrateSettings() {
     let version = 0;
     try {
       version = Number(GM_getValue('cleanbirdSettingsVersion', 0)) || 0;
     } catch (_) {}
 
+    const isExistingInstall = version >= 2;
+
     if (version < 2) {
       settings.floatingSettings = false;
       try {
         GM_setValue('floatingSettings', false);
-        GM_setValue('cleanbirdSettingsVersion', SETTINGS_VERSION);
       } catch (_) {}
+    }
+
+    if (isExistingInstall && version < 3 && !tabOrder.length) {
+      saveTabOrder(['following', 'ukraine war', 'canada news', 'for you']);
+    }
+
+    if (version < SETTINGS_VERSION) {
+      try { GM_setValue('cleanbirdSettingsVersion', SETTINGS_VERSION); } catch (_) {}
     }
   }
 
@@ -543,6 +571,76 @@
       #cleanbird-settings .cleanbird-branding-copy strong { display: block; margin-bottom: 7px; }
       #cleanbird-settings .cleanbird-branding-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
 
+      #cleanbird-settings .cleanbird-tab-order {
+        margin: 12px 18px 6px;
+        padding: 12px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 12px;
+      }
+
+      #cleanbird-settings .cleanbird-tab-order-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 9px;
+      }
+
+      #cleanbird-settings .cleanbird-tab-order-head strong { display: block; }
+      #cleanbird-settings .cleanbird-tab-order-head span,
+      #cleanbird-settings .cleanbird-tab-empty {
+        display: block;
+        margin-top: 3px;
+        color: #8b98a5;
+        font-size: 12px;
+      }
+
+      #cleanbird-settings .cleanbird-tab-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      #cleanbird-settings .cleanbird-tab-row {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 5px 7px;
+        border-radius: 10px;
+        background: rgba(255,255,255,.035);
+      }
+
+      #cleanbird-settings .cleanbird-tab-position {
+        color: #8b98a5;
+        text-align: center;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #cleanbird-settings .cleanbird-tab-name {
+        overflow: hidden;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #cleanbird-settings .cleanbird-tab-buttons { display: flex; gap: 5px; }
+      #cleanbird-settings .cleanbird-tab-buttons button {
+        display: grid;
+        width: 34px;
+        height: 30px;
+        place-items: center;
+        padding: 0;
+        border-radius: 9px;
+        font-size: 17px;
+      }
+
+      #cleanbird-settings button:disabled {
+        opacity: .28;
+        cursor: default;
+      }
+
       #cleanbird-settings label {
         display: flex;
         align-items: center;
@@ -615,6 +713,16 @@
               <input type="file" data-logo-file accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
             </div>
           </div>
+          <div class="cleanbird-tab-order">
+            <div class="cleanbird-tab-order-head">
+              <div>
+                <strong>Home tab order</strong>
+                <span>Move every detected tab left or right.</span>
+              </div>
+              <button type="button" data-action="reset-tabs">Use X order</button>
+            </div>
+            <div class="cleanbird-tab-list"></div>
+          </div>
           <div class="cleanbird-options"></div>
         </section>`;
 
@@ -640,6 +748,9 @@
         if (event.target.closest('[data-action="reset"]')) resetSettings();
         if (event.target.closest('[data-action="choose-logo"]')) panel.querySelector('[data-logo-file]').click();
         if (event.target.closest('[data-action="clear-logo"]')) clearLogo();
+        if (event.target.closest('[data-action="reset-tabs"]')) resetTabOrder();
+        const tabMove = event.target.closest('[data-tab-move]');
+        if (tabMove) moveTab(tabMove.dataset.tabKey, Number(tabMove.dataset.tabMove));
       });
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && panel && !panel.hidden) closePanel();
@@ -658,6 +769,8 @@
       input.checked = Boolean(settings[input.dataset.setting]);
     }
     updateLogoPreview();
+    tabEditorSignature = '';
+    renderTabOrderEditor();
     document.documentElement.setAttribute('data-cleanbird-panel-open', 'true');
     panel.hidden = false;
   }
@@ -672,6 +785,7 @@
       try { if (typeof GM_setValue === 'function') GM_setValue(key, value); } catch (_) {}
     }
     settings = { ...DEFAULTS };
+    resetTabOrder();
     applySettings();
     openPanel();
   }
@@ -996,6 +1110,177 @@
     root.style.setProperty('--cleanbird-main-width', `${Math.round(mainWidth)}px`);
   }
 
+  function normalizeTabKey(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function getHomeTabState() {
+    if (location.pathname !== '/home') return null;
+
+    const groups = [...document.querySelectorAll('[role="tablist"]')]
+      .map(container => {
+        const tabs = [...container.querySelectorAll('[role="tab"]')]
+          .filter(tab => normalizeTabKey(tab.textContent));
+        const keys = tabs.map(tab => normalizeTabKey(tab.textContent));
+        const score = tabs.length +
+          (keys.includes('following') ? 100 : 0) +
+          (keys.includes('for you') ? 100 : 0);
+        return { container, tabs, score };
+      })
+      .filter(group => group.tabs.length > 1)
+      .sort((first, second) => second.score - first.score);
+
+    let container = groups[0]?.container;
+    let tabs = groups[0]?.tabs || [];
+
+    if (!container) {
+      tabs = [...document.querySelectorAll('[role="tab"]')]
+        .filter(tab => normalizeTabKey(tab.textContent));
+      if (tabs.length < 2) return null;
+      container = tabs[0].parentElement;
+      while (container && !tabs.every(tab => container.contains(tab))) {
+        container = container.parentElement;
+      }
+    } else {
+      let common = tabs[0]?.parentElement;
+      while (common && !tabs.every(tab => common.contains(tab))) common = common.parentElement;
+      if (common && (common === container || container.contains(common))) container = common;
+    }
+
+    if (!container || container === document.body || container === document.documentElement) return null;
+
+    const usedKeys = new Set();
+    const usedItems = new Set();
+    const entries = [];
+    for (const tab of tabs) {
+      const key = normalizeTabKey(tab.textContent);
+      if (!key || usedKeys.has(key)) continue;
+      let item = tab;
+      while (item.parentElement && item.parentElement !== container) item = item.parentElement;
+      if (item.parentElement !== container || usedItems.has(item)) continue;
+      usedKeys.add(key);
+      usedItems.add(item);
+      entries.push({ key, label: String(tab.textContent || '').replace(/\s+/g, ' ').trim(), tab, item });
+    }
+
+    if (entries.length < 2) return null;
+
+    const route = `${location.pathname}${location.search}`;
+    const currentOrder = entries.map(entry => entry.key);
+    if (nativeTabRoute !== route) {
+      nativeTabRoute = route;
+      nativeTabOrder = currentOrder;
+    } else {
+      for (const key of currentOrder) {
+        if (!nativeTabOrder.includes(key)) nativeTabOrder.push(key);
+      }
+    }
+
+    return { container, entries, currentOrder };
+  }
+
+  function mergeTabOrder(discoveredOrder) {
+    const present = new Set(discoveredOrder);
+    return [
+      ...tabOrder.filter(key => present.has(key)),
+      ...discoveredOrder.filter(key => !tabOrder.includes(key))
+    ];
+  }
+
+  function persistVisibleTabOrder(visibleOrder) {
+    const visible = new Set(visibleOrder);
+    saveTabOrder([...visibleOrder, ...tabOrder.filter(key => !visible.has(key))]);
+  }
+
+  function renderTabOrderEditor() {
+    if (!panel) return;
+    const list = panel.querySelector('.cleanbird-tab-list');
+    if (!list) return;
+
+    const state = getHomeTabState();
+    if (!state) {
+      const signature = `empty:${location.pathname}`;
+      if (tabEditorSignature === signature) return;
+      tabEditorSignature = signature;
+      const empty = document.createElement('span');
+      empty.className = 'cleanbird-tab-empty';
+      empty.textContent = 'Open X Home to detect and arrange its current tabs.';
+      list.replaceChildren(empty);
+      return;
+    }
+
+    const order = mergeTabOrder(state.currentOrder);
+    const byKey = new Map(state.entries.map(entry => [entry.key, entry]));
+    const signature = `${location.pathname}|${order.join('|')}|${state.entries.map(entry => entry.label).join('|')}`;
+    if (tabEditorSignature === signature) return;
+    tabEditorSignature = signature;
+
+    const rows = order.map((key, index) => {
+      const entry = byKey.get(key);
+      const row = document.createElement('div');
+      row.className = 'cleanbird-tab-row';
+
+      const position = document.createElement('span');
+      position.className = 'cleanbird-tab-position';
+      position.textContent = String(index + 1);
+
+      const name = document.createElement('span');
+      name.className = 'cleanbird-tab-name';
+      name.textContent = entry?.label || key;
+
+      const buttons = document.createElement('div');
+      buttons.className = 'cleanbird-tab-buttons';
+      const left = document.createElement('button');
+      const right = document.createElement('button');
+      left.type = right.type = 'button';
+      left.textContent = '←';
+      right.textContent = '→';
+      left.title = `Move ${name.textContent} left`;
+      right.title = `Move ${name.textContent} right`;
+      left.setAttribute('aria-label', left.title);
+      right.setAttribute('aria-label', right.title);
+      left.dataset.tabKey = right.dataset.tabKey = key;
+      left.dataset.tabMove = '-1';
+      right.dataset.tabMove = '1';
+      left.disabled = index === 0;
+      right.disabled = index === order.length - 1;
+      buttons.append(left, right);
+      row.append(position, name, buttons);
+      return row;
+    });
+    list.replaceChildren(...rows);
+  }
+
+  function moveTab(key, direction) {
+    const state = getHomeTabState();
+    if (!state || ![-1, 1].includes(direction)) return;
+    const order = mergeTabOrder(state.currentOrder);
+    const index = order.indexOf(key);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    persistVisibleTabOrder(order);
+    reorderHomeTabs();
+    tabEditorSignature = '';
+    renderTabOrderEditor();
+  }
+
+  function resetTabOrder() {
+    const state = getHomeTabState();
+    if (state && nativeTabOrder.length) {
+      const present = new Set(state.currentOrder);
+      const original = [
+        ...nativeTabOrder.filter(key => present.has(key)),
+        ...state.currentOrder.filter(key => !nativeTabOrder.includes(key))
+      ];
+      saveTabOrder(original);
+      reorderHomeTabs();
+    }
+    saveTabOrder([]);
+    tabEditorSignature = '';
+    renderTabOrderEditor();
+  }
+
   function selectFollowing() {
     if (!settings.autoFollowing || location.pathname !== '/home') return;
     const routeKey = `${location.pathname}${location.search}`;
@@ -1010,27 +1295,17 @@
   }
 
   function reorderHomeTabs() {
-    if (!settings.moveForYouTab || location.pathname !== '/home') return;
-    const tabs = [...document.querySelectorAll('[role="tab"]')];
-    const forYou = tabs.find(tab => (tab.textContent || '').trim().toLowerCase() === 'for you');
-    const canada = tabs.find(tab => (tab.textContent || '').trim().toLowerCase() === 'canada news');
-    if (!forYou || !canada || forYou === canada) return;
+    if (!tabOrder.length || location.pathname !== '/home') return;
+    const state = getHomeTabState();
+    if (!state) return;
+    const order = mergeTabOrder(state.currentOrder);
+    if (order.every((key, index) => key === state.currentOrder[index])) return;
 
-    let common = forYou.parentElement;
-    while (common && !common.contains(canada)) common = common.parentElement;
-    if (!common || common === document.body || common === document.documentElement) return;
-
-    let forYouItem = forYou;
-    let canadaItem = canada;
-    while (forYouItem.parentElement && forYouItem.parentElement !== common) {
-      forYouItem = forYouItem.parentElement;
-    }
-    while (canadaItem.parentElement && canadaItem.parentElement !== common) {
-      canadaItem = canadaItem.parentElement;
-    }
-    if (forYouItem.parentElement !== common || canadaItem.parentElement !== common) return;
-    if (canadaItem.nextSibling !== forYouItem) {
-      common.insertBefore(forYouItem, canadaItem.nextSibling);
+    const byKey = new Map(state.entries.map(entry => [entry.key, entry.item]));
+    const afterTabs = state.entries[state.entries.length - 1].item.nextSibling;
+    for (const key of order) {
+      const item = byKey.get(key);
+      if (item) state.container.insertBefore(item, afterTabs);
     }
   }
 
@@ -1052,6 +1327,7 @@
     stopAutoplay();
     selectFollowing();
     reorderHomeTabs();
+    if (panel && !panel.hidden) renderTabOrderEditor();
     updateResponsiveLayout();
     updateBranding();
     ensureControls();
