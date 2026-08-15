@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cleanbird for X
-// @namespace    cleanbird.local
-// @version      1.1.0
+// @namespace    https://github.com/buttocks/cleanbird-for-x/greasy-fork
+// @version      1.2.0
 // @description  A configurable, responsive cleanup interface for X in Firefox.
 // @license      MIT
 // @homepageURL  https://github.com/buttocks/cleanbird-for-x
@@ -12,38 +12,14 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  const BR_LOGO = `data:image/svg+xml,${encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-      <defs>
-        <linearGradient id="edge" x1="12" y1="8" x2="116" y2="120" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#20d5ff"/>
-          <stop offset=".52" stop-color="#2f80ff"/>
-          <stop offset="1" stop-color="#9b4dff"/>
-        </linearGradient>
-        <linearGradient id="letters" x1="34" y1="38" x2="96" y2="94" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#ffffff"/>
-          <stop offset=".58" stop-color="#d8f7ff"/>
-          <stop offset="1" stop-color="#65cfff"/>
-        </linearGradient>
-        <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="3.2" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <rect x="7" y="7" width="114" height="114" rx="31" fill="#070a11" stroke="url(#edge)" stroke-width="7"/>
-      <path d="M25 99 102 22" stroke="url(#edge)" stroke-width="5" stroke-linecap="round" opacity=".72"/>
-      <text x="61" y="83" text-anchor="middle" fill="url(#letters)" stroke="#07101c" stroke-width="2"
-            paint-order="stroke" font-family="Arial Black,Arial,sans-serif" font-size="55" font-style="italic"
-            font-weight="900" letter-spacing="-7" filter="url(#glow)">BR</text>
-      <path d="M27 104h74" stroke="url(#edge)" stroke-width="4" stroke-linecap="round"/>
-    </svg>`)}`;
-
   const DEFAULTS = {
+    limitTracking: true,
     hideAds: true,
     hideRightSidebar: true,
     hideGrok: true,
@@ -64,10 +40,12 @@
     reduceMotion: true,
     stopAutoplay: true,
     autoFollowing: true,
+    forYouLast: true,
     floatingSettings: false
   };
 
   const LABELS = {
+    limitTracking: 'Limit X tracking (best effort)',
     hideAds: 'Hide ads and promoted posts',
     hideRightSidebar: 'Hide trends/right sidebar',
     hideGrok: 'Hide Grok',
@@ -88,6 +66,7 @@
     reduceMotion: 'Reduce animations',
     stopAutoplay: 'Stop video autoplay',
     autoFollowing: 'Default to Following feed',
+    forYouLast: 'Keep For You tab last',
     floatingSettings: 'Show quick settings button'
   };
 
@@ -99,7 +78,15 @@
     hideCommunities: ['/communities']
   };
 
-  const SETTINGS_VERSION = 3;
+  const TRACKING_PATHS = [
+    /\/(?:i\/api\/)?1\.1\/jot\/client_event\.json(?:[?#]|$)/i,
+    /\/i\/api\/1\.1\/branch\/init\.json(?:[?#]|$)/i,
+    /\/i\/api\/1\.1\/live_pipeline\/events(?:[?#]|$)/i,
+    /\/i\/(?:adsct|adsct\?)/i
+  ];
+  const TRACKING_HOSTS = /^(?:analytics|ads-api|ads)\.(?:twitter|x)\.com$/i;
+
+  const SETTINGS_VERSION = 6;
   let settings = loadSettings();
   let tabOrder = loadTabOrder();
   let styleNode;
@@ -111,9 +98,9 @@
   let scanQueued = false;
   let lastRoute = '';
   let followingAttemptedFor = '';
-  let customLogo = loadCustomLogo();
 
   migrateSettings();
+  installPrivacyGuards();
 
   function loadSettings() {
     const saved = {};
@@ -126,15 +113,6 @@
       }
     }
     return saved;
-  }
-
-  function loadCustomLogo() {
-    try {
-      const value = GM_getValue('customLogo', '');
-      return typeof value === 'string' && value ? value : BR_LOGO;
-    } catch (_) {
-      return BR_LOGO;
-    }
   }
 
   function loadTabOrder() {
@@ -183,7 +161,76 @@
     try {
       if (typeof GM_setValue === 'function') GM_setValue(key, value);
     } catch (_) {}
+    if (key === 'forYouLast' && !value && !tabOrder.length) restoreNativeTabOrder();
     applySettings();
+  }
+
+  function isTrackingRequest(input) {
+    if (!input) return false;
+    try {
+      const raw = typeof input === 'string' ? input : input.url;
+      const url = new URL(raw, location.href);
+      return TRACKING_HOSTS.test(url.hostname) || TRACKING_PATHS.some(pattern => pattern.test(url.pathname + url.search));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function cleanClickedLink(link) {
+    if (!settings.limitTracking || !link?.href) return;
+    try {
+      const url = new URL(link.href, location.href);
+      const isX = /^(?:[^.]+\.)?(?:x|twitter)\.com$/i.test(url.hostname);
+      for (const key of [...url.searchParams.keys()]) {
+        if (/^utm_/i.test(key) || ['twclid', 'ref_src', 'ref_url'].includes(key.toLowerCase())) {
+          url.searchParams.delete(key);
+        }
+      }
+      if (isX) {
+        url.searchParams.delete('s');
+        url.searchParams.delete('t');
+      } else if (/^https?:$/.test(url.protocol)) {
+        link.relList.add('noreferrer', 'noopener');
+      }
+      if (url.href !== link.href) link.href = url.href;
+    } catch (_) {}
+  }
+
+  function installPrivacyGuards() {
+    const page = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+
+    try {
+      const nativeFetch = page.fetch;
+      if (typeof nativeFetch === 'function' && !nativeFetch.__cleanbirdPrivacyGuard) {
+        const guardedFetch = function (...args) {
+          if (settings.limitTracking && isTrackingRequest(args[0])) {
+            const ResponseCtor = page.Response || Response;
+            return page.Promise.resolve(new ResponseCtor(null, { status: 204, statusText: 'No Content' }));
+          }
+          return nativeFetch.apply(this, args);
+        };
+        guardedFetch.__cleanbirdPrivacyGuard = true;
+        page.fetch = guardedFetch;
+      }
+    } catch (_) {}
+
+    try {
+      const navigatorPrototype = page.Navigator?.prototype;
+      const nativeBeacon = navigatorPrototype?.sendBeacon;
+      if (typeof nativeBeacon === 'function' && !nativeBeacon.__cleanbirdPrivacyGuard) {
+        const guardedBeacon = function (url, data) {
+          if (settings.limitTracking && isTrackingRequest(url)) return true;
+          return nativeBeacon.call(this, url, data);
+        };
+        guardedBeacon.__cleanbirdPrivacyGuard = true;
+        navigatorPrototype.sendBeacon = guardedBeacon;
+      }
+    } catch (_) {}
+
+    document.addEventListener('click', event => {
+      const link = event.target?.closest?.('a[href]');
+      if (link) cleanClickedLink(link);
+    }, true);
   }
 
   function setFlag(key, enabled) {
@@ -444,18 +491,6 @@
         flex: 0 0 auto !important;
       }
 
-      html[data-cleanbird-custom-logo] header[role="banner"] h1 a[href="/home"] svg {
-        display: none !important;
-      }
-
-      html[data-cleanbird-custom-logo] header[role="banner"] h1 a[href="/home"]::after {
-        content: "";
-        display: block;
-        width: 32px;
-        height: 32px;
-        background: var(--cleanbird-custom-logo) center / contain no-repeat;
-      }
-
       #cleanbird-settings-button {
         display: grid;
         place-items: center;
@@ -473,6 +508,8 @@
         color: #fff;
         background: #070a11;
         box-shadow: 0 5px 22px rgba(0,0,0,.28);
+        font-size: 25px;
+        line-height: 1;
         opacity: .58;
         transition: opacity .16s ease, box-shadow .16s ease, transform .16s ease;
         cursor: pointer;
@@ -486,14 +523,6 @@
         transform: translateY(-50%) scale(1.06);
         outline: none;
         box-shadow: 0 7px 26px rgba(32,213,255,.24);
-      }
-
-      #cleanbird-settings-button img {
-        display: block;
-        width: 36px;
-        height: 36px;
-        object-fit: contain;
-        pointer-events: none;
       }
 
       html[data-cleanbird-panel-open] [role="menu"] {
@@ -539,39 +568,6 @@
       #cleanbird-settings h2 { margin: 0; font-size: 20px; }
       #cleanbird-settings p { margin: 4px 0 0; color: #8b98a5; font-size: 13px; }
       #cleanbird-settings .cleanbird-options { padding: 8px 12px 12px; }
-
-      #cleanbird-settings .cleanbird-branding {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin: 12px 18px 4px;
-        padding: 12px;
-        border: 1px solid rgba(255,255,255,.10);
-        border-radius: 12px;
-      }
-
-      #cleanbird-settings .cleanbird-logo-preview {
-        display: grid;
-        flex: 0 0 52px;
-        width: 52px;
-        height: 52px;
-        place-items: center;
-        overflow: hidden;
-        border-radius: 12px;
-        color: #8b98a5;
-        background: #000;
-        font-size: 11px;
-      }
-
-      #cleanbird-settings .cleanbird-logo-preview img {
-        width: 42px;
-        height: 42px;
-        object-fit: contain;
-      }
-
-      #cleanbird-settings .cleanbird-branding-copy { flex: 1; min-width: 0; }
-      #cleanbird-settings .cleanbird-branding-copy strong { display: block; margin-bottom: 7px; }
-      #cleanbird-settings .cleanbird-branding-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
 
       #cleanbird-settings .cleanbird-tab-order {
         margin: 12px 18px 6px;
@@ -680,12 +676,9 @@
       settingsButton = document.createElement('button');
       settingsButton.id = 'cleanbird-settings-button';
       settingsButton.type = 'button';
-      const settingsLogo = document.createElement('img');
-      settingsLogo.src = BR_LOGO;
-      settingsLogo.alt = '';
-      settingsButton.appendChild(settingsLogo);
-      settingsButton.title = 'BR settings';
-      settingsButton.setAttribute('aria-label', 'Open BR settings');
+      settingsButton.textContent = '⚙';
+      settingsButton.title = 'Cleanbird settings';
+      settingsButton.setAttribute('aria-label', 'Open Cleanbird settings');
       settingsButton.addEventListener('click', openPanel);
       document.body.appendChild(settingsButton);
     }
@@ -696,30 +689,19 @@
       panel.id = 'cleanbird-settings';
       panel.hidden = true;
       panel.innerHTML = `
-        <section class="cleanbird-card" role="dialog" aria-modal="true" aria-label="BR settings">
+        <section class="cleanbird-card" role="dialog" aria-modal="true" aria-label="Cleanbird settings">
           <header class="cleanbird-head">
-            <div><h2>BR settings</h2><p>Choose what X gets to show you.</p></div>
+            <div><h2>Cleanbird settings</h2><p>Choose what X gets to show you.</p></div>
             <div class="cleanbird-actions">
               <button type="button" data-action="reset">Reset</button>
               <button type="button" data-action="close">Done</button>
             </div>
           </header>
-          <div class="cleanbird-branding">
-            <div class="cleanbird-logo-preview"><span>Default</span></div>
-            <div class="cleanbird-branding-copy">
-              <strong>Custom logo</strong>
-              <div class="cleanbird-branding-buttons">
-                <button type="button" data-action="choose-logo">Choose image</button>
-                <button type="button" data-action="clear-logo">Use BR logo</button>
-              </div>
-              <input type="file" data-logo-file accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
-            </div>
-          </div>
           <div class="cleanbird-tab-order">
             <div class="cleanbird-tab-order-head">
               <div>
                 <strong>Home tab order</strong>
-                <span>Move every detected tab left or right.</span>
+                <span>Move every detected tab up or down in this list.</span>
               </div>
               <button type="button" data-action="reset-tabs">Use X order</button>
             </div>
@@ -743,13 +725,10 @@
       panel.addEventListener('change', event => {
         const input = event.target.closest('input[data-setting]');
         if (input) saveSetting(input.dataset.setting, input.checked);
-        if (event.target.matches('input[data-logo-file]')) importLogo(event.target.files[0]);
       });
       panel.addEventListener('click', event => {
         if (event.target === panel || event.target.closest('[data-action="close"]')) closePanel();
         if (event.target.closest('[data-action="reset"]')) resetSettings();
-        if (event.target.closest('[data-action="choose-logo"]')) panel.querySelector('[data-logo-file]').click();
-        if (event.target.closest('[data-action="clear-logo"]')) clearLogo();
         if (event.target.closest('[data-action="reset-tabs"]')) resetTabOrder();
         const tabMove = event.target.closest('[data-tab-move]');
         if (tabMove) moveTab(tabMove.dataset.tabKey, Number(tabMove.dataset.tabMove));
@@ -770,7 +749,6 @@
     for (const input of panel.querySelectorAll('input[data-setting]')) {
       input.checked = Boolean(settings[input.dataset.setting]);
     }
-    updateLogoPreview();
     tabEditorSignature = '';
     renderTabOrderEditor();
     document.documentElement.setAttribute('data-cleanbird-panel-open', 'true');
@@ -787,69 +765,9 @@
       try { if (typeof GM_setValue === 'function') GM_setValue(key, value); } catch (_) {}
     }
     settings = { ...DEFAULTS };
-    resetTabOrder();
+    saveTabOrder([]);
     applySettings();
     openPanel();
-  }
-
-  function importLogo(file) {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) return;
-    if (file.size > 3 * 1024 * 1024) {
-      window.alert('Please choose a logo smaller than 3 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      customLogo = typeof reader.result === 'string' ? reader.result : '';
-      try { GM_setValue('customLogo', customLogo); } catch (_) {}
-      updateBranding();
-      updateLogoPreview();
-    });
-    reader.readAsDataURL(file);
-  }
-
-  function clearLogo() {
-    customLogo = BR_LOGO;
-    try { GM_setValue('customLogo', BR_LOGO); } catch (_) {}
-    updateBranding();
-    updateLogoPreview();
-  }
-
-  function updateLogoPreview() {
-    if (!panel) return;
-    const preview = panel.querySelector('.cleanbird-logo-preview');
-    if (!preview) return;
-    preview.replaceChildren();
-    if (customLogo) {
-      const image = document.createElement('img');
-      image.src = customLogo;
-      image.alt = 'Custom logo';
-      preview.appendChild(image);
-    } else {
-      const text = document.createElement('span');
-      text.textContent = 'Default';
-      preview.appendChild(text);
-    }
-  }
-
-  function updateBranding() {
-    const root = document.documentElement;
-    root.toggleAttribute('data-cleanbird-custom-logo', Boolean(customLogo));
-    if (customLogo) {
-      root.style.setProperty('--cleanbird-custom-logo', `url("${customLogo}")`);
-      let favicon = document.querySelector('link#cleanbird-favicon');
-      if (!favicon) {
-        favicon = document.createElement('link');
-        favicon.id = 'cleanbird-favicon';
-        favicon.rel = 'icon';
-        (document.head || root).appendChild(favicon);
-      }
-      favicon.href = customLogo;
-    } else {
-      root.style.removeProperty('--cleanbird-custom-logo');
-      document.querySelector('link#cleanbird-favicon')?.remove();
-    }
   }
 
   function hideElement(element) {
@@ -896,18 +814,7 @@
       const label = [...item.querySelectorAll('span, div')]
         .filter(node => (node.textContent || '').trim().toLowerCase() === 'settings and privacy')
         .sort((first, second) => first.children.length - second.children.length)[0];
-      if (label) label.textContent = 'BR settings';
-
-      const oldIcon = item.querySelector('svg');
-      if (oldIcon) {
-        const logo = document.createElement('img');
-        logo.src = BR_LOGO;
-        logo.alt = '';
-        logo.width = 24;
-        logo.height = 24;
-        logo.style.cssText = 'display:block;width:24px;height:24px;object-fit:contain;margin-right:32px;';
-        oldIcon.replaceWith(logo);
-      }
+      if (label) label.textContent = 'Cleanbird settings';
 
       const open = event => {
         event.preventDefault();
@@ -1183,10 +1090,14 @@
 
   function mergeTabOrder(discoveredOrder) {
     const present = new Set(discoveredOrder);
-    return [
+    const order = [
       ...tabOrder.filter(key => present.has(key)),
       ...discoveredOrder.filter(key => !tabOrder.includes(key))
     ];
+    if (settings.forYouLast && order.includes('for you')) {
+      return [...order.filter(key => key !== 'for you'), 'for you'];
+    }
+    return order;
   }
 
   function persistVisibleTabOrder(visibleOrder) {
@@ -1232,21 +1143,21 @@
 
       const buttons = document.createElement('div');
       buttons.className = 'cleanbird-tab-buttons';
-      const left = document.createElement('button');
-      const right = document.createElement('button');
-      left.type = right.type = 'button';
-      left.textContent = '←';
-      right.textContent = '→';
-      left.title = `Move ${name.textContent} left`;
-      right.title = `Move ${name.textContent} right`;
-      left.setAttribute('aria-label', left.title);
-      right.setAttribute('aria-label', right.title);
-      left.dataset.tabKey = right.dataset.tabKey = key;
-      left.dataset.tabMove = '-1';
-      right.dataset.tabMove = '1';
-      left.disabled = index === 0;
-      right.disabled = index === order.length - 1;
-      buttons.append(left, right);
+      const up = document.createElement('button');
+      const down = document.createElement('button');
+      up.type = down.type = 'button';
+      up.textContent = '↑';
+      down.textContent = '↓';
+      up.title = `Move ${name.textContent} up`;
+      down.title = `Move ${name.textContent} down`;
+      up.setAttribute('aria-label', up.title);
+      down.setAttribute('aria-label', down.title);
+      up.dataset.tabKey = down.dataset.tabKey = key;
+      up.dataset.tabMove = '-1';
+      down.dataset.tabMove = '1';
+      up.disabled = index === 0;
+      down.disabled = index === order.length - 1;
+      buttons.append(up, down);
       row.append(position, name, buttons);
       return row;
     });
@@ -1260,6 +1171,12 @@
     const index = order.indexOf(key);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= order.length) return;
+    if (settings.forYouLast && (key === 'for you' || order[target] === 'for you')) {
+      settings.forYouLast = false;
+      try { GM_setValue('forYouLast', false); } catch (_) {}
+      const input = panel?.querySelector('input[data-setting="forYouLast"]');
+      if (input) input.checked = false;
+    }
     [order[index], order[target]] = [order[target], order[index]];
     persistVisibleTabOrder(order);
     reorderHomeTabs();
@@ -1268,6 +1185,13 @@
   }
 
   function resetTabOrder() {
+    settings.forYouLast = false;
+    try { GM_setValue('forYouLast', false); } catch (_) {}
+    restoreNativeTabOrder();
+    applySettings();
+  }
+
+  function restoreNativeTabOrder() {
     const state = getHomeTabState();
     if (state && nativeTabOrder.length) {
       const present = new Set(state.currentOrder);
@@ -1297,7 +1221,7 @@
   }
 
   function reorderHomeTabs() {
-    if (!tabOrder.length || location.pathname !== '/home') return;
+    if ((!tabOrder.length && !settings.forYouLast) || location.pathname !== '/home') return;
     const state = getHomeTabState();
     if (!state) return;
     const order = mergeTabOrder(state.currentOrder);
@@ -1331,7 +1255,6 @@
     reorderHomeTabs();
     if (panel && !panel.hidden) renderTabOrderEditor();
     updateResponsiveLayout();
-    updateBranding();
     ensureControls();
   }
 
