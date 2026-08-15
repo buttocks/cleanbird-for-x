@@ -1,4 +1,4 @@
-CLEANBIRD FOR X 1.2.0
+CLEANBIRD FOR X 1.3.0
 
 REQUIREMENTS
 - Firefox
@@ -20,9 +20,22 @@ SETTINGS
 - Or press Alt+Shift+C while viewing X.
 - Or use the userscript manager's Open Cleanbird settings command.
 
-The optional quick-settings button is disabled by default. All cleanup and
-layout controls are independent, so the interface can stay wide or compact as
-the Firefox window changes resolution.
+BLOCKED COUNTERS
+The top of Cleanbird settings shows totals for blocked ads, Grok/Chat clutter,
+and tracking requests. Totals persist across reloads until Reset is selected.
+
+The optional quick-settings button is disabled by default. When enabled, it
+starts at the bottom-right, can be dragged around the screen edges, and
+remembers its location. Use Reset quick button to bottom right in Cleanbird
+settings to restore its default location. All cleanup and layout controls are
+independent, so the interface can stay wide or compact as Firefox changes size.
+
+CUSTOM APPEARANCE
+Open Custom appearance in Cleanbird settings to choose separate PNG, JPG, WebP,
+or SVG images for the header logo, browser tab/bookmark icon, Cleanbird's More-
+menu icon, and the draggable quick-settings button. Each image can be returned
+to its normal default independently. Images are stored locally by the
+userscript manager and are limited to 3 MB each.
 
 PRIVACY GUARD
 Limit X tracking (best effort) is enabled by default. It blocks known X
