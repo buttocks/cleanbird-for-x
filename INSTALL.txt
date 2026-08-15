@@ -1,0 +1,36 @@
+CLEANBIRD FOR X 1.0.0
+
+REQUIREMENTS
+- Firefox
+- Violentmonkey or Tampermonkey
+- An existing X login in Firefox
+
+INSTALL
+1. Install Violentmonkey from:
+   https://addons.mozilla.org/firefox/addon/violentmonkey/
+
+2. Open Cleanbird-Firefox.user.js in Firefox.
+
+3. Choose Install on the userscript-manager page.
+
+4. Open or reload https://x.com/
+
+SETTINGS
+- Open X's More menu and choose BR settings.
+- Or press Alt+Shift+C while viewing X.
+- Or use the userscript manager's Open Cleanbird settings command.
+
+The optional quick-settings button is disabled by default. All cleanup and
+layout controls are independent, so the interface can stay wide or compact as
+the Firefox window changes resolution.
+
+UPDATING
+Installing a newer Cleanbird-Firefox.user.js replaces the older version when
+the userscript name and namespace are unchanged.
+
+REMOVAL
+Open Violentmonkey or Tampermonkey, find Cleanbird for X, and remove it.
+
+PRIVACY
+Cleanbird uses X's existing browser session. It does not ask for, copy, or store
+your password and does not send analytics or personal data.
