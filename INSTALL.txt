@@ -1,4 +1,4 @@
-CLEANBIRD FOR X 1.0.0
+CLEANBIRD FOR X 1.1.0 DEVELOPMENT BUILD
 
 REQUIREMENTS
 - Firefox
@@ -23,6 +23,12 @@ SETTINGS
 The optional quick-settings button is disabled by default. All cleanup and
 layout controls are independent, so the interface can stay wide or compact as
 the Firefox window changes resolution.
+
+HOME TAB ORDER
+Open X Home before opening BR settings. The Home tab order section detects the
+tabs currently on X's top bar. Use the left and right arrows to place any tab
+where you want it. New or renamed tabs remain visible and can be arranged later.
+Choose Use X order to clear the custom arrangement.
 
 UPDATING
 Installing a newer Cleanbird-Firefox.user.js replaces the older version when
