@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0 — 2026-08-15
+
+- Added a default-on, best-effort X tracking limiter.
+- Blocked known client-event telemetry calls and matching browser beacons.
+- Removed common tracking parameters from clicked links and suppressed external referrers.
+- Moved For You to the end of the Home tabs by default.
+- Allowed manual tab movement or Use X order to override the new default.
+
+## 1.1.1 — 2026-08-15
+
+- Replaced the tab organizer's left/right arrows with up/down controls.
+- Removed public custom-logo controls and image replacement.
+- Left X's header logo and browser favicon unchanged.
+- Replaced BR-specific labels and images with neutral Cleanbird settings controls.
+
 ## 1.1.0 — 2026-08-15
 
 - Replaced the Canada-specific For You rule with a general Home tab organizer.
