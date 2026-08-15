@@ -116,11 +116,13 @@
   let lastRoute = '';
   let followingAttemptedFor = '';
   let backNavigationTimer;
+  const userStartedVideos = new WeakSet();
   const LAST_NON_POST_ROUTE_KEY = 'cleanbird.lastNonPostRoute';
 
   migrateSettings();
   installPrivacyGuards();
   installBackNavigationGuard();
+  installAutoplayGuard();
 
   function loadSettings() {
     const saved = {};
@@ -1968,13 +1970,49 @@
     }
   }
 
-  function stopAutoplay() {
-    if (!settings.stopAutoplay) return;
-    for (const video of document.querySelectorAll('video[autoplay]:not([data-cleanbird-autoplay])')) {
-      video.dataset.cleanbirdAutoplay = 'stopped';
+  function installAutoplayGuard() {
+    document.addEventListener('click', event => {
+      if (!settings.stopAutoplay) return;
+      for (const video of document.querySelectorAll('video')) {
+        const rect = video.getBoundingClientRect();
+        if (
+          event.clientX >= rect.left && event.clientX <= rect.right &&
+          event.clientY >= rect.top && event.clientY <= rect.bottom
+        ) {
+          userStartedVideos.add(video);
+          break;
+        }
+      }
+    }, true);
+
+    document.addEventListener('keydown', event => {
+      if (!settings.stopAutoplay || !['Enter', ' '].includes(event.key)) return;
+      const target = event.target;
+      const player = target?.closest?.('[data-testid="videoPlayer"], [data-testid="videoComponent"]');
+      const video = target?.tagName === 'VIDEO' ? target : player?.querySelector('video');
+      if (video) userStartedVideos.add(video);
+    }, true);
+
+    document.addEventListener('play', event => {
+      const video = event.target;
+      if (!settings.stopAutoplay || video?.tagName !== 'VIDEO' || userStartedVideos.has(video)) return;
       video.autoplay = false;
       video.removeAttribute('autoplay');
       video.pause();
+    }, true);
+
+    document.addEventListener('pause', event => {
+      if (event.target?.tagName === 'VIDEO') userStartedVideos.delete(event.target);
+    }, true);
+  }
+
+  function stopAutoplay() {
+    if (!settings.stopAutoplay) return;
+    for (const video of document.querySelectorAll('video')) {
+      if (userStartedVideos.has(video)) continue;
+      video.autoplay = false;
+      video.removeAttribute('autoplay');
+      if (!video.paused) video.pause();
     }
   }
 

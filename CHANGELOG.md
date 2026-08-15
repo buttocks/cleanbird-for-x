@@ -9,6 +9,8 @@
   until X's main interface is ready.
 - Preserved native Translate controls while hiding standalone Grok actions.
 - Fixed ordinary posts opened from Notifications being mistaken for ads.
+- Stopped X-scripted video playback even when a video has no autoplay attribute,
+  while preserving playback started directly by the user.
 - Improved Back and Close handling across opened posts and other X page layouts.
 - Made Cleanbird safer around native menus, dialogs, media viewers, and sort
   overlays without replacing X's own controls.
