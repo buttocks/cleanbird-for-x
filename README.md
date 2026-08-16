@@ -8,6 +8,7 @@ and making the three-column layout use the browser width intelligently.
 
 - Responsive feed, navigation, sidebars, menus, tabs, and post typography
 - Adjustable full-width and narrow-reading layouts
+- Optional center alignment for feed-post text and feed-post images
 - Optional removal of promoted posts, Grok, Chat, Premium, Jobs, trends,
   suggestions, view counts, and footer links
 - Best-effort blocking of X client-event telemetry, tracking beacons, link

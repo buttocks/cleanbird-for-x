@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.13 — 2026-08-16
+
+- Fixed cold starts in new tabs opened from Home, Explore, Notifications,
+  Profile, and other X navigation links.
+- Stabilized the right sidebar during scrolling and responsive resizing.
+- Kept right-sidebar cards consistently outlined and moved the column slightly
+  inward to avoid scrollbar-edge clipping.
+- Added an optional setting to center-align feed-post text without changing
+  wrapping or the surrounding post layout.
+- Added a separate optional setting to center feed-post images.
+
 ## 1.5.2 — 2026-08-15
 
 - Hid the latest Get Verified profile banner layout.
