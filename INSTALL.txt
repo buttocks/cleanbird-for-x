@@ -1,4 +1,4 @@
-CLEANBIRD FOR X 1.5.13
+CLEANBIRD FOR X 1.5.15
 
 REQUIREMENTS
 - Firefox
@@ -43,9 +43,9 @@ are scaled down so the complete frame fits within the browser viewport. Videos
 that already fit are left at their normal size.
 
 FEED ALIGNMENT
-Center-align text in feed posts and Center images in feed posts are separate,
-optional settings. Text continues to wrap normally, and neither setting changes
-the layout of individual Post pages.
+Center-align text in feed posts and Center images in tweets are separate,
+optional settings. Text continues to wrap normally. Image centering also works
+for quoted posts, multi-image galleries, and individual Post pages.
 
 PRIVACY GUARD
 Limit X tracking (best effort) is enabled by default. It blocks known X
