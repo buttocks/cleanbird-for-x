@@ -634,9 +634,13 @@
         text-align: center !important;
       }
 
-      html[data-cleanbird-centerFeedImages] [data-cleanbird-feed-tweet="true"] [data-testid="tweetPhoto"] {
+      html[data-cleanbird-centerFeedImages] [data-cleanbird-feed-tweet="true"] [data-cleanbird-centered-media="true"] {
         margin-left: auto !important;
         margin-right: auto !important;
+      }
+
+      html[data-cleanbird-centerFeedImages] [data-cleanbird-feed-tweet="true"] [data-cleanbird-centered-media-parent="true"] {
+        justify-content: center !important;
       }
 
       html[data-cleanbird-softenMetrics] article[data-testid="tweet"] [role="group"] {
@@ -1990,6 +1994,50 @@
     }
   }
 
+  function updateCenteredFeedMedia() {
+    const centeredMedia = new Set();
+    const centeredParents = new Set();
+
+    if (settings.centerFeedImages && !isPostRoute(`${location.pathname}${location.search}`)) {
+      for (const article of document.querySelectorAll('[data-cleanbird-feed-tweet="true"]')) {
+        for (const photo of article.querySelectorAll('[data-testid="tweetPhoto"]')) {
+          let candidate = photo;
+          let node = photo;
+          let widerParent;
+
+          for (let depth = 0; depth < 5; depth += 1) {
+            const parent = node.parentElement;
+            if (!parent || parent === article || parent.closest('article[data-testid="tweet"]') !== article) break;
+            if (parent.querySelector('[data-testid="tweetText"], [data-testid="User-Name"], [role="group"]')) break;
+
+            const nodeWidth = node.getBoundingClientRect().width;
+            const parentWidth = parent.getBoundingClientRect().width;
+            if (nodeWidth > 0 && parentWidth > nodeWidth + 8) {
+              widerParent = parent;
+              break;
+            }
+
+            candidate = parent;
+            node = parent;
+          }
+
+          if (!widerParent) continue;
+          candidate.dataset.cleanbirdCenteredMedia = 'true';
+          widerParent.dataset.cleanbirdCenteredMediaParent = 'true';
+          centeredMedia.add(candidate);
+          centeredParents.add(widerParent);
+        }
+      }
+    }
+
+    for (const oldMedia of document.querySelectorAll('[data-cleanbird-centered-media="true"]')) {
+      if (!centeredMedia.has(oldMedia)) delete oldMedia.dataset.cleanbirdCenteredMedia;
+    }
+    for (const oldParent of document.querySelectorAll('[data-cleanbird-centered-media-parent="true"]')) {
+      if (!centeredParents.has(oldParent)) delete oldParent.dataset.cleanbirdCenteredMediaParent;
+    }
+  }
+
   function updateNavLayout() {
     for (const oldStack of document.querySelectorAll('[data-cleanbird-nav-stack="true"]')) {
       delete oldStack.dataset.cleanbirdNavStack;
@@ -2442,6 +2490,7 @@
     updatePremiumNags();
     updateFeedLayers();
     updateCenteredFeedTweets();
+    updateCenteredFeedMedia();
     updateNavLayout();
     updateAccountPopup();
     updateFloatingClutter();
