@@ -60,7 +60,7 @@ https://github.com/buttocks/cleanbird-for-x
 
 ## Code to submit
 
-Submit the complete contents of `Cleanbird-for-X-Greasy-Fork-v1.5.1.user.js`.
+Submit the complete contents of `Cleanbird-for-X-Greasy-Fork-v1.5.2.user.js`.
 Its public namespace is deliberately different from the older local build, so
 it installs as a separate userscript instead of replacing that copy. Keep only
 one Cleanbird script enabled at a time. Do not add a Greasy Fork `@downloadURL`

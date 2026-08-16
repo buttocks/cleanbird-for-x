@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.2 — 2026-08-15
+
+- Hid the latest Get Verified profile banner layout.
+- Recognized straight, omitted, and curly apostrophes in X's verification copy.
+- Added a Get Verified button fallback when X changes the banner structure.
+- Reduced the compact sidebar account row to the avatar and account-menu button.
+
 ## 1.5.1 — 2026-08-15
 
 - Added an independent Fit videos to browser height setting.
