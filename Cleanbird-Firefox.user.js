@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cleanbird for X
 // @namespace    https://github.com/buttocks/cleanbird-for-x/greasy-fork
-// @version      1.5.2
+// @version      1.5.13
 // @description  A configurable, responsive cleanup interface for X in Firefox.
 // @license      MIT
 // @homepageURL  https://github.com/buttocks/cleanbird-for-x
@@ -35,6 +35,8 @@
     compactSidebars: true,
     stackAccount: true,
     compactPosts: true,
+    centerFeedTweets: false,
+    centerFeedImages: false,
     narrowFeed: false,
     softenMetrics: true,
     reduceMotion: true,
@@ -62,6 +64,8 @@
     compactSidebars: 'Use compact sidebars',
     stackAccount: 'Keep account beneath navigation',
     compactPosts: 'Compact posts',
+    centerFeedTweets: 'Center-align text in feed posts',
+    centerFeedImages: 'Center images in feed posts',
     narrowFeed: 'Use narrow reading column',
     softenMetrics: 'Dim reply/repost/like counts',
     reduceMotion: 'Reduce animations',
@@ -115,6 +119,8 @@
   let nativeTabOrder = [];
   let nativeTabRoute = '';
   let scanQueued = false;
+  let started = false;
+  let responsiveLayoutSignature = '';
   let lastRoute = '';
   let followingAttemptedFor = '';
   let backNavigationTimer;
@@ -122,9 +128,6 @@
   const LAST_NON_POST_ROUTE_KEY = 'cleanbird.lastNonPostRoute';
 
   migrateSettings();
-  installPrivacyGuards();
-  installBackNavigationGuard();
-  installAutoplayGuard();
 
   function loadSettings() {
     const saved = {};
@@ -547,6 +550,26 @@
         min-width: var(--cleanbird-sidebar-width) !important;
         max-width: var(--cleanbird-sidebar-width) !important;
         flex: 0 0 var(--cleanbird-sidebar-width) !important;
+        box-sizing: border-box !important;
+      }
+
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] > div,
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] > div > div,
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] > div > div > div,
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] > div > div > div > div,
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] form[role="search"],
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] section,
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] aside {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: var(--cleanbird-sidebar-width) !important;
+        box-sizing: border-box !important;
+      }
+
+      html[data-cleanbird-adaptiveWidth][data-cleanbird-right-visible] main [data-testid="sidebarColumn"] div {
+        min-width: 0 !important;
+        max-width: var(--cleanbird-sidebar-width) !important;
+        box-sizing: border-box !important;
       }
 
       html[data-cleanbird-adaptiveWidth] main [data-testid="primaryColumn"] > div,
@@ -605,6 +628,15 @@
 
       html[data-cleanbird-compactPosts] article[data-testid="tweet"] [data-testid="User-Name"] {
         margin-bottom: 1px !important;
+      }
+
+      html[data-cleanbird-centerFeedTweets] [data-cleanbird-feed-tweet="true"] [data-testid="tweetText"] {
+        text-align: center !important;
+      }
+
+      html[data-cleanbird-centerFeedImages] [data-cleanbird-feed-tweet="true"] [data-testid="tweetPhoto"] {
+        margin-left: auto !important;
+        margin-right: auto !important;
       }
 
       html[data-cleanbird-softenMetrics] article[data-testid="tweet"] [role="group"] {
@@ -1945,6 +1977,19 @@
     }
   }
 
+  function updateCenteredFeedTweets() {
+    for (const article of document.querySelectorAll('[data-cleanbird-feed-tweet="true"]')) {
+      delete article.dataset.cleanbirdFeedTweet;
+    }
+    if (isPostRoute(`${location.pathname}${location.search}`)) return;
+
+    const primary = document.querySelector('main [data-testid="primaryColumn"]');
+    if (!primary) return;
+    for (const article of primary.querySelectorAll('article[data-testid="tweet"]')) {
+      article.dataset.cleanbirdFeedTweet = 'true';
+    }
+  }
+
   function updateNavLayout() {
     for (const oldStack of document.querySelectorAll('[data-cleanbird-nav-stack="true"]')) {
       delete oldStack.dataset.cleanbirdNavStack;
@@ -2115,22 +2160,24 @@
     const sidebarVisible = Boolean(
       !settings.hideRightSidebar &&
       sidebar &&
-      getComputedStyle(sidebar).display !== 'none' &&
-      sidebar.getBoundingClientRect().width > 120
+      getComputedStyle(sidebar).display !== 'none'
     );
     root.toggleAttribute('data-cleanbird-right-visible', sidebarVisible);
 
     if (!settings.adaptiveWidth) {
-      root.style.removeProperty('--cleanbird-feed-width');
-      root.style.removeProperty('--cleanbird-sidebar-width');
-      root.style.removeProperty('--cleanbird-left-width');
-      root.style.removeProperty('--cleanbird-main-width');
+      if (responsiveLayoutSignature) {
+        responsiveLayoutSignature = '';
+        root.style.removeProperty('--cleanbird-feed-width');
+        root.style.removeProperty('--cleanbird-sidebar-width');
+        root.style.removeProperty('--cleanbird-left-width');
+        root.style.removeProperty('--cleanbird-main-width');
+      }
       return;
     }
 
     const viewport = window.innerWidth;
     const scale = (minimum, fluid, maximum) => Math.max(minimum, Math.min(maximum, fluid));
-    const viewportGutter = viewport >= 1200 ? scale(12, viewport * 0.012, 28) : 0;
+    const viewportGutter = viewport >= 1200 ? scale(32, viewport * 0.025, 48) : 0;
     const leftWidth = viewport < 1050
       ? 88
       : settings.compactSidebars
@@ -2140,13 +2187,19 @@
     const columnGap = sidebarVisible ? scale(16, viewport * 0.014, 30) : 0;
     const sidebarWidth = sidebarVisible
       ? (settings.compactSidebars
-          ? scale(310, viewport * 0.18, 400)
-          : scale(340, viewport * 0.22, 480))
+          ? scale(350, viewport * 0.2, 420)
+          : scale(380, viewport * 0.22, 480))
       : 0;
     const feedWidth = sidebarVisible
       ? Math.max(600, availableMain - sidebarWidth - columnGap)
       : Math.max(600, availableMain);
     const mainWidth = feedWidth + sidebarWidth + columnGap;
+
+    const nextSignature = [feedWidth, sidebarWidth, leftWidth, mainWidth]
+      .map(value => Math.round(value))
+      .join(':');
+    if (nextSignature === responsiveLayoutSignature) return;
+    responsiveLayoutSignature = nextSignature;
 
     root.style.setProperty('--cleanbird-feed-width', `${Math.round(feedWidth)}px`);
     root.style.setProperty('--cleanbird-sidebar-width', `${Math.round(sidebarWidth)}px`);
@@ -2388,6 +2441,7 @@
     updateSuggestionModules();
     updatePremiumNags();
     updateFeedLayers();
+    updateCenteredFeedTweets();
     updateNavLayout();
     updateAccountPopup();
     updateFloatingClutter();
@@ -2410,6 +2464,11 @@
   }
 
   function start() {
+    if (started) return;
+    started = true;
+    installPrivacyGuards();
+    installBackNavigationGuard();
+    installAutoplayGuard();
     applySettings();
     const observer = new MutationObserver(queueScan);
     observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -2420,11 +2479,28 @@
     setInterval(queueScan, 2500);
   }
 
+  function startAfterXMount() {
+    const pageShell = () => document.querySelector(
+      'main, [role="main"], [data-testid="primaryColumn"]'
+    );
+    if (pageShell()) {
+      start();
+      return;
+    }
+
+    const startupObserver = new MutationObserver(() => {
+      if (!pageShell()) return;
+      startupObserver.disconnect();
+      start();
+    });
+    startupObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   if (typeof GM_registerMenuCommand === 'function') {
     GM_registerMenuCommand('Open Cleanbird settings', openPanel);
     GM_registerMenuCommand('Reset Cleanbird settings', resetSettings);
   }
 
-  if (document.documentElement) start();
-  else document.addEventListener('readystatechange', start, { once: true });
+  if (document.documentElement) startAfterXMount();
+  else document.addEventListener('readystatechange', startAfterXMount, { once: true });
 })();
