@@ -19,7 +19,7 @@ better use of wide screens. It runs on both `x.com` and `twitter.com`.
 
 - Responsive feed, navigation, sidebars, menus, and text
 - Full-width and narrow-reading layouts
-- Optional, independent centering of feed-post text and feed-post images
+- Optional, independent centering of feed-post text and tweet images
 - Home-tab organizer with up/down controls for every detected top-bar tab
 - For You placed last by default, with manual ordering still available
 - Optional removal of promoted posts, Grok, Chat, Premium, Jobs, trends,
@@ -61,7 +61,7 @@ https://github.com/buttocks/cleanbird-for-x
 
 ## Code to submit
 
-Submit the complete contents of `Cleanbird-for-X-Greasy-Fork-v1.5.13.user.js`.
+Submit the complete contents of `Cleanbird-for-X-Greasy-Fork-v1.5.15.user.js`.
 Its public namespace is deliberately different from the older local build, so
 it installs as a separate userscript instead of replacing that copy. Keep only
 one Cleanbird script enabled at a time. Do not add a Greasy Fork `@downloadURL`
