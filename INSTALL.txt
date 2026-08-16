@@ -1,4 +1,4 @@
-CLEANBIRD FOR X 1.5.2
+CLEANBIRD FOR X 1.5.13
 
 REQUIREMENTS
 - Firefox
@@ -41,6 +41,11 @@ VIDEO FITTING
 Fit videos to browser height is enabled by default. Oversized timeline videos
 are scaled down so the complete frame fits within the browser viewport. Videos
 that already fit are left at their normal size.
+
+FEED ALIGNMENT
+Center-align text in feed posts and Center images in feed posts are separate,
+optional settings. Text continues to wrap normally, and neither setting changes
+the layout of individual Post pages.
 
 PRIVACY GUARD
 Limit X tracking (best effort) is enabled by default. It blocks known X
