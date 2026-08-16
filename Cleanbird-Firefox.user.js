@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cleanbird for X
 // @namespace    https://github.com/buttocks/cleanbird-for-x/greasy-fork
-// @version      1.5.13
+// @version      1.5.15
 // @description  A configurable, responsive cleanup interface for X in Firefox.
 // @license      MIT
 // @homepageURL  https://github.com/buttocks/cleanbird-for-x
@@ -65,7 +65,7 @@
     stackAccount: 'Keep account beneath navigation',
     compactPosts: 'Compact posts',
     centerFeedTweets: 'Center-align text in feed posts',
-    centerFeedImages: 'Center images in feed posts',
+    centerFeedImages: 'Center images in tweets',
     narrowFeed: 'Use narrow reading column',
     softenMetrics: 'Dim reply/repost/like counts',
     reduceMotion: 'Reduce animations',
@@ -634,12 +634,13 @@
         text-align: center !important;
       }
 
-      html[data-cleanbird-centerFeedImages] [data-cleanbird-feed-tweet="true"] [data-cleanbird-centered-media="true"] {
+      html[data-cleanbird-centerFeedImages] article[data-testid="tweet"] [data-cleanbird-centered-media="true"] {
         margin-left: auto !important;
         margin-right: auto !important;
+        align-self: center !important;
       }
 
-      html[data-cleanbird-centerFeedImages] [data-cleanbird-feed-tweet="true"] [data-cleanbird-centered-media-parent="true"] {
+      html[data-cleanbird-centerFeedImages] article[data-testid="tweet"] [data-cleanbird-centered-media-parent="true"] {
         justify-content: center !important;
       }
 
@@ -1998,35 +1999,49 @@
     const centeredMedia = new Set();
     const centeredParents = new Set();
 
-    if (settings.centerFeedImages && !isPostRoute(`${location.pathname}${location.search}`)) {
-      for (const article of document.querySelectorAll('[data-cleanbird-feed-tweet="true"]')) {
-        for (const photo of article.querySelectorAll('[data-testid="tweetPhoto"]')) {
-          let candidate = photo;
-          let node = photo;
-          let widerParent;
+    const commonAncestor = elements => {
+      let common = elements[0] || null;
+      while (common && !elements.every(element => common.contains(element))) {
+        common = common.parentElement;
+      }
+      return common;
+    };
 
-          for (let depth = 0; depth < 5; depth += 1) {
-            const parent = node.parentElement;
-            if (!parent || parent === article || parent.closest('article[data-testid="tweet"]') !== article) break;
-            if (parent.querySelector('[data-testid="tweetText"], [data-testid="User-Name"], [role="group"]')) break;
+    if (settings.centerFeedImages) {
+      const primary = document.querySelector('main [data-testid="primaryColumn"]');
+      for (const article of primary?.querySelectorAll('article[data-testid="tweet"]') || []) {
+        const photos = [...article.querySelectorAll('[data-testid="tweetPhoto"]')]
+          .filter(photo => photo.closest('article[data-testid="tweet"]') === article);
+        let candidate = commonAncestor(photos);
+        if (!candidate || candidate === article) continue;
 
-            const nodeWidth = node.getBoundingClientRect().width;
-            const parentWidth = parent.getBoundingClientRect().width;
-            if (nodeWidth > 0 && parentWidth > nodeWidth + 8) {
-              widerParent = parent;
-              break;
-            }
+        let node = candidate;
+        let widerParent;
+        for (let depth = 0; depth < 8; depth += 1) {
+          const parent = node.parentElement;
+          if (!parent || parent === article || parent.closest('article[data-testid="tweet"]') !== article) break;
 
-            candidate = parent;
-            node = parent;
+          const nodeWidth = node.getBoundingClientRect().width;
+          const parentWidth = parent.getBoundingClientRect().width;
+          const containsPostContent = Boolean(parent.querySelector(
+            '[data-testid="tweetText"], [data-testid="User-Name"], [role="group"]'
+          ));
+          if (nodeWidth > 0 && parentWidth > nodeWidth + 8) {
+            widerParent = parent;
+            if (!containsPostContent) centeredParents.add(parent);
+            break;
           }
 
-          if (!widerParent) continue;
-          candidate.dataset.cleanbirdCenteredMedia = 'true';
-          widerParent.dataset.cleanbirdCenteredMediaParent = 'true';
-          centeredMedia.add(candidate);
-          centeredParents.add(widerParent);
+          if (containsPostContent) break;
+
+          candidate = parent;
+          node = parent;
         }
+
+        if (!widerParent) continue;
+        candidate.dataset.cleanbirdCenteredMedia = 'true';
+        if (centeredParents.has(widerParent)) widerParent.dataset.cleanbirdCenteredMediaParent = 'true';
+        centeredMedia.add(candidate);
       }
     }
 
