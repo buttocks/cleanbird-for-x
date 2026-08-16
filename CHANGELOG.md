@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.15 — 2026-08-16
+
+- Extended Center images in tweets to timeline posts, quoted posts, image
+  galleries, and standalone Post pages.
+- Centered each gallery as one media block instead of moving its individual
+  photo cells.
+- Left media that already fills the available width unchanged.
+
 ## 1.5.13 — 2026-08-16
 
 - Fixed cold starts in new tabs opened from Home, Explore, Notifications,
